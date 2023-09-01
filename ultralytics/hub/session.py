@@ -2,14 +2,15 @@
 
 import signal
 import sys
-from pathlib import Path
-import time
 import threading
+import time
+from pathlib import Path
 
 import requests
-from ultralytics_hub_sdk import HUBClient, HUB_API_ROOT, HUB_WEB_ROOT
+from ultralytics_hub_sdk import HUB_API_ROOT, HUB_WEB_ROOT, HUBClient
+
 from ultralytics.hub.utils import PREFIX, TryExcept
-from ultralytics.utils import SETTINGS, LOGGER, __version__, checks, emojis, is_colab, threaded
+from ultralytics.utils import LOGGER, SETTINGS, __version__, checks, emojis, is_colab, threaded
 from ultralytics.utils.errors import HUBModelError
 
 AGENT_NAME = f'python-{__version__}-colab' if is_colab() else f'python-{__version__}-local'
@@ -52,8 +53,8 @@ class HUBTrainingSession:
         api_key, model_id = self.parse_model_url(url)
 
         # Get credentials
-        active_key = api_key or SETTINGS.get("api_key")
-        credentials = {"api_key": active_key} if active_key else None  # Set credentials
+        active_key = api_key or SETTINGS.get('api_key')
+        credentials = {'api_key': active_key} if active_key else None  # Set credentials
 
         # Initialize client
         client = HUBClient(credentials)
@@ -111,18 +112,29 @@ class HUBTrainingSession:
                     'patience': config['patience'],
                     'device': config['device'],
                     'cache': config['cache'],
-                    'data': self.model.get_dataset_url()
-                }
-            self.train_args = get_train_args(self.model.data.get("config"))
+                    'data': self.model.get_dataset_url()}
+
+            self.train_args = get_train_args(self.model.data.get('config'))
             # Set the model file as either a *.pt or *.yaml file
-            self.model_file = self.model.get_weights_url('parent') if self.model.is_pretrained() else self.model.get_architecture()
+            self.model_file = self.model.get_weights_url(
+                'parent') if self.model.is_pretrained() else self.model.get_architecture()
 
         if not self.train_args.get('data'):
             raise ValueError('Dataset may still be processing. Please wait a minute and try again.')  # RF fix
 
-        self.model_file = checks.check_yolov5u_filename(self.model_file, verbose=False) # YOLOv5->YOLOv5u
+        self.model_file = checks.check_yolov5u_filename(self.model_file, verbose=False)  # YOLOv5->YOLOv5u
 
-    def request_queue(self, request_func, retry=3, timeout=30, thread=True, verbose=True, progress=False, *args, **kwargs,):
+    def request_queue(
+        self,
+        request_func,
+        retry=3,
+        timeout=30,
+        thread=True,
+        verbose=True,
+        progress=False,
+        *args,
+        **kwargs,
+    ):
         retry_codes = (408, 500)  # retry only these codes
 
         @TryExcept(verbose=verbose)
@@ -158,7 +170,6 @@ class HUBTrainingSession:
         else:
             return func(request_func, **kwargs)
 
-
     def upload_metrics(self):
         """Upload model metrics to Ultralytics HUB."""
         self.request_queue(self.model.upload_metrics, metrics=self.metrics_queue.copy(), thread=True)
@@ -175,7 +186,14 @@ class HUBTrainingSession:
             final (bool): Indicates if the model is the final model after training.
         """
         if Path(weights).is_file():
-            self.model.upload_model(epoch=epoch, weights=weights, is_best=is_best, map=map, final=final, retry=10, timeout=3600, thread=not final, progress=True)
+            self.model.upload_model(epoch=epoch,
+                                    weights=weights,
+                                    is_best=is_best,
+                                    map=map,
+                                    final=final,
+                                    retry=10,
+                                    timeout=3600,
+                                    thread=not final,
+                                    progress=True)
         else:
             LOGGER.warning(f'{PREFIX}WARNING ⚠️ Model upload issue. Missing model {weights}.')
-
