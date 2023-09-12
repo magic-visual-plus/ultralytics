@@ -22,7 +22,7 @@ TASK_MAP = {
         yolo.v8.classify.ClassificationPredictor],
     'detect': [
         DetectionModel, yolo.v8.detect.DetectionTrainer, yolo.v8.detect.DetectionValidator,
-        yolo.v8.detect.DetectionPredictor],
+        yolo.v8.detect.DetectionPredictor, yolo.v8.detect.DetectionTestValidator],
     'segment': [
         SegmentationModel, yolo.v8.segment.SegmentationTrainer, yolo.v8.segment.SegmentationValidator,
         yolo.v8.segment.SegmentationPredictor],
@@ -299,6 +299,36 @@ class YOLO:
         args.imgsz = check_imgsz(args.imgsz, max_dim=1)
 
         validator = TASK_MAP[self.task][2](args=args, _callbacks=self.callbacks)
+        validator(model=self.model)
+        self.metrics = validator.metrics
+
+        return validator.metrics
+    
+    @smart_inference_mode()
+    def test(self, data=None, **kwargs):
+        """
+        Validate a model on a given dataset.
+
+        Args:
+            data (str): The dataset to validate on. Accepts all formats accepted by yolo
+            **kwargs : Any other args accepted by the validators. To see all args check 'configuration' section in docs
+        """
+        overrides = self.overrides.copy()
+        overrides['rect'] = True  # rect batches as default
+        overrides.update(kwargs)
+        overrides['mode'] = 'val'
+        args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
+        args.data = data or args.data
+        if 'task' in overrides:
+            self.task = args.task
+        else:
+            args.task = self.task
+        if args.imgsz == DEFAULT_CFG.imgsz and not isinstance(self.model, (str, Path)):
+            args.imgsz = self.model.args['imgsz']  # use trained imgsz unless custom value is passed
+        args.imgsz = check_imgsz(args.imgsz, max_dim=1)
+
+        validator = TASK_MAP[self.task][-1](args=args, _callbacks=self.callbacks)
+        LOGGER.info(f"validator {type(validator)}")
         validator(model=self.model)
         self.metrics = validator.metrics
 

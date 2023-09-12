@@ -537,7 +537,7 @@ def ap_per_class(tp,
         plot_mc_curve(px, r, save_dir / f'{prefix}R_curve.png', names, ylabel='Recall', on_plot=on_plot)
         py = np.stack(py, axis=1)
         save_plot_metric(px, py.T, save_dir / "pr_curve.csv", names, 'pr', py.mean(1))
-        save_plot_metric(px, f1, save_dir / "f1.csv", names, 'f1', smooth(f1.mean(0), 0.05))
+        save_plot_metric(px, f1, save_dir / "f1_curve.csv", names, 'f1', smooth(f1.mean(0), 0.05))
         save_plot_metric(px, p, save_dir / "p_curve.csv", names, 'p', smooth(p.mean(0), 0.05))
         save_plot_metric(px, r, save_dir / "r_curve.csv", names, 'r', smooth(r.mean(0), 0.05))
 
@@ -548,6 +548,48 @@ def ap_per_class(tp,
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
     return tp, fp, p, r, f1, ap, unique_classes.astype(int), threshold
+
+
+def pr_per_class_for_test(tp,
+                 conf,
+                 pred_cls,
+                 target_cls,
+                 plot=False,
+                 on_plot=None,
+                 save_dir=Path(),
+                 names=(),
+                 eps=1e-16,
+                 prefix=''):
+
+    # Sort by objectness
+    i = np.argsort(-conf)
+    tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
+
+    # Find unique classes
+    unique_classes, nt = np.unique(target_cls, return_counts=True)
+    nc = unique_classes.shape[0]  # number of classes, number of detections
+
+    # Create Precision-Recall curve and compute AP for each class
+    # px, py = np.linspace(0, 1, 1000), []  # for plotting
+    ap, p, r = np.zeros((nc, tp.shape[1])), np.zeros((nc, 1)), np.zeros((nc, 1))
+    for ci, c in enumerate(unique_classes):
+        i = pred_cls == c
+        n_l = nt[ci]  # number of labels
+        n_p = i.sum()  # number of predictions
+        if n_p == 0 or n_l == 0:
+            continue
+        # Accumulate FPs and TPs
+        fpc = (1 - tp[i]).cumsum(0)
+        tpc = tp[i].cumsum(0)
+        # Recall
+        recall = tpc / (n_l + eps)  # recall curve
+        # Precision
+        precision = tpc / (tpc + fpc)  # precision curve
+        p[ci, 0] = precision[-1, 0].mean()
+        r[ci, 0] = recall[-1, 0].mean()
+    # Compute F1 (harmonic mean of precision and recall)
+    f1 = 2 * p * r / (p + r + eps)
+    return [], [], p, r, f1, ap, unique_classes.astype(int), 0
 
 
 class Metric(SimpleClass):
@@ -727,10 +769,92 @@ class DetMetrics(SimpleClass):
     def process(self, tp, conf, pred_cls, target_cls):
         """Process predicted results for object detection and update metrics."""
         # hard code save all pots
-        plot_dir = increment_path(self.save_dir / "plots" / "exp", exist_ok=False)
+        plot_dir = increment_path(self.save_dir / "plots" / "epoch", exist_ok=False)
         plot_dir.mkdir(parents=True, exist_ok=True)
         LOGGER.info("save plot dir to %s", plot_dir)
         results = ap_per_class(tp, conf, pred_cls, target_cls, plot=True, save_dir=plot_dir,
+                               names=self.names)[2:]
+        self.box.nc = len(self.names)
+        self.box.update(results)
+
+    @property
+    def keys(self):
+        """Returns a list of keys for accessing specific metrics."""
+        return ['metrics/precision(B)', 'metrics/recall(B)', 'metrics/mAP50(B)', 'metrics/mAP50-95(B)', 'confidence']
+
+    def mean_results(self):
+        """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
+        return self.box.mean_results()
+
+    def class_result(self, i):
+        """Return the result of evaluating the performance of an object detection model on a specific class."""
+        return self.box.class_result(i)
+
+    @property
+    def maps(self):
+        """Returns mean Average Precision (mAP) scores per class."""
+        return self.box.maps
+
+    @property
+    def fitness(self):
+        """Returns the fitness of box object."""
+        return self.box.fitness()
+
+    @property
+    def ap_class_index(self):
+        """Returns the average precision index per class."""
+        return self.box.ap_class_index
+
+    @property
+    def results_dict(self):
+        """Returns dictionary of computed performance metrics and statistics."""
+        return dict(zip(self.keys + ['fitness'], self.mean_results() + [self.box.confidence, self.fitness]))
+
+class DetMetricsForTest(SimpleClass):
+    """
+    This class is a utility class for computing detection metrics such as precision, recall, and mean average precision
+    (mAP) of an object detection model.
+
+    Args:
+        save_dir (Path): A path to the directory where the output plots will be saved. Defaults to current directory.
+        plot (bool): A flag that indicates whether to plot precision-recall curves for each class. Defaults to False.
+        on_plot (func): An optional callback to pass plots path and data when they are rendered. Defaults to None.
+        names (tuple of str): A tuple of strings that represents the names of the classes. Defaults to an empty tuple.
+
+    Attributes:
+        save_dir (Path): A path to the directory where the output plots will be saved.
+        plot (bool): A flag that indicates whether to plot the precision-recall curves for each class.
+        on_plot (func): An optional callback to pass plots path and data when they are rendered.
+        names (tuple of str): A tuple of strings that represents the names of the classes.
+        box (Metric): An instance of the Metric class for storing the results of the detection metrics.
+        speed (dict): A dictionary for storing the execution time of different parts of the detection process.
+
+    Methods:
+        process(tp, conf, pred_cls, target_cls): Updates the metric results with the latest batch of predictions.
+        keys: Returns a list of keys for accessing the computed detection metrics.
+        mean_results: Returns a list of mean values for the computed detection metrics.
+        class_result(i): Returns a list of values for the computed detection metrics for a specific class.
+        maps: Returns a dictionary of mean average precision (mAP) values for different IoU thresholds.
+        fitness: Computes the fitness score based on the computed detection metrics.
+        ap_class_index: Returns a list of class indices sorted by their average precision (AP) values.
+        results_dict: Returns a dictionary that maps detection metric keys to their computed values.
+    """
+
+    def __init__(self, save_dir=Path('.'), plot=False, on_plot=None, names=()) -> None:
+        self.save_dir = save_dir
+        self.plot = plot
+        self.on_plot = on_plot
+        self.names = names
+        self.box = Metric()
+        self.speed = {'preprocess': 0.0, 'inference': 0.0, 'loss': 0.0, 'postprocess': 0.0}
+
+    def process(self, tp, conf, pred_cls, target_cls):
+        """Process predicted results for object detection and update metrics."""
+        # hard code save all pots
+        plot_dir = increment_path(self.save_dir / "plots" / "epoch", exist_ok=False)
+        plot_dir.mkdir(parents=True, exist_ok=True)
+        LOGGER.info("save plot dir to %s", plot_dir)
+        results = pr_per_class_for_test(tp, conf, pred_cls, target_cls, plot=True, save_dir=plot_dir,
                                names=self.names)[2:]
         self.box.nc = len(self.names)
         self.box.update(results)
