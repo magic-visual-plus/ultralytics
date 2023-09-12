@@ -585,7 +585,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
-        self.threshold = 0
+        self.confidence = 0
 
     @property
     def ap50(self):
@@ -683,7 +683,7 @@ class Metric(SimpleClass):
         Args:
             results (tuple): A tuple of (p, r, ap, f1, ap_class)
         """
-        self.p, self.r, self.f1, self.all_ap, self.ap_class_index, self.threshold = results
+        self.p, self.r, self.f1, self.all_ap, self.ap_class_index, self.confidence = results
 
 
 class DetMetrics(SimpleClass):
@@ -738,7 +738,7 @@ class DetMetrics(SimpleClass):
     @property
     def keys(self):
         """Returns a list of keys for accessing specific metrics."""
-        return ['metrics/precision(B)', 'metrics/recall(B)', 'metrics/mAP50(B)', 'metrics/mAP50-95(B)', 'threshold']
+        return ['metrics/precision(B)', 'metrics/recall(B)', 'metrics/mAP50(B)', 'metrics/mAP50-95(B)', 'confidence']
 
     def mean_results(self):
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
@@ -766,7 +766,7 @@ class DetMetrics(SimpleClass):
     @property
     def results_dict(self):
         """Returns dictionary of computed performance metrics and statistics."""
-        return dict(zip(self.keys + ['fitness'], self.mean_results() + [self.box.threshold, self.fitness]))
+        return dict(zip(self.keys + ['fitness'], self.mean_results() + [self.box.confidence, self.fitness]))
 
 
 class SegmentMetrics(SimpleClass):

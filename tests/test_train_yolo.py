@@ -37,5 +37,5 @@ model.add_callback("on_val_end", call_on_val_end)
 lr = 0.0001
 freeze = 10
 train_base_dir = '/tmp/trains/732'
-train_base_dir = '/tmp/trains/710'
+# train_base_dir = '/tmp/trains/710'
 model.train(data=f'{train_base_dir}/dataset/data.yaml', epochs=20, project=f"{train_base_dir}/output", name="output", batch=12, model=pretrained_model_path, lr0=lr)
