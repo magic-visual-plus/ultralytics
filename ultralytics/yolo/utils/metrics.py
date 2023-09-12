@@ -12,6 +12,8 @@ import torch
 import torch.nn as nn
 
 from ultralytics.yolo.utils import LOGGER, SimpleClass, TryExcept, plt_settings
+from ultralytics.yolo.utils.files import increment_path
+import pandas as pd
 
 OKS_SIGMA = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89]) / 10.0
 
@@ -441,6 +443,14 @@ def compute_ap(recall, precision):
 
     return ap, mpre, mrec
 
+def save_plot_metric(px, py, save_dir=Path('.'), names=(), col_prefix='', avg_py=None):
+    data_dict = {"px": px, "all": avg_py}
+    for i, y in enumerate(py):
+        label=f'{names[i]}'
+        data_dict[label] = y
+    df = pd.DataFrame(data_dict)
+    df.to_csv(str(save_dir), index=False, float_format='%.4f')
+
 
 def ap_per_class(tp,
                  conf,
@@ -520,16 +530,24 @@ def ap_per_class(tp,
     names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
     names = dict(enumerate(names))  # to dict
     if plot:
+        # save metric to per dir
         plot_pr_curve(px, py, ap, save_dir / f'{prefix}PR_curve.png', names, on_plot=on_plot)
         plot_mc_curve(px, f1, save_dir / f'{prefix}F1_curve.png', names, ylabel='F1', on_plot=on_plot)
         plot_mc_curve(px, p, save_dir / f'{prefix}P_curve.png', names, ylabel='Precision', on_plot=on_plot)
         plot_mc_curve(px, r, save_dir / f'{prefix}R_curve.png', names, ylabel='Recall', on_plot=on_plot)
+        py = np.stack(py, axis=1)
+        save_plot_metric(px, py.T, save_dir / "pr_curve.csv", names, 'pr', py.mean(1))
+        save_plot_metric(px, f1, save_dir / "f1.csv", names, 'f1', smooth(f1.mean(0), 0.05))
+        save_plot_metric(px, p, save_dir / "p_curve.csv", names, 'p', smooth(p.mean(0), 0.05))
+        save_plot_metric(px, r, save_dir / "r_curve.csv", names, 'r', smooth(r.mean(0), 0.05))
+
 
     i = smooth(f1.mean(0), 0.1).argmax()  # max F1 index
     p, r, f1 = p[:, i], r[:, i], f1[:, i]
+    threshold = px[i]
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
-    return tp, fp, p, r, f1, ap, unique_classes.astype(int)
+    return tp, fp, p, r, f1, ap, unique_classes.astype(int), threshold
 
 
 class Metric(SimpleClass):
@@ -567,6 +585,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
+        self.threshold = 0
 
     @property
     def ap50(self):
@@ -664,7 +683,7 @@ class Metric(SimpleClass):
         Args:
             results (tuple): A tuple of (p, r, ap, f1, ap_class)
         """
-        self.p, self.r, self.f1, self.all_ap, self.ap_class_index = results
+        self.p, self.r, self.f1, self.all_ap, self.ap_class_index, self.threshold = results
 
 
 class DetMetrics(SimpleClass):
@@ -707,7 +726,11 @@ class DetMetrics(SimpleClass):
 
     def process(self, tp, conf, pred_cls, target_cls):
         """Process predicted results for object detection and update metrics."""
-        results = ap_per_class(tp, conf, pred_cls, target_cls, plot=self.plot, save_dir=self.save_dir,
+        # hard code save all pots
+        plot_dir = increment_path(self.save_dir / "plots" / "exp", exist_ok=False)
+        plot_dir.mkdir(parents=True, exist_ok=True)
+        LOGGER.info("save plot dir to %s", plot_dir)
+        results = ap_per_class(tp, conf, pred_cls, target_cls, plot=True, save_dir=plot_dir,
                                names=self.names)[2:]
         self.box.nc = len(self.names)
         self.box.update(results)
@@ -715,7 +738,7 @@ class DetMetrics(SimpleClass):
     @property
     def keys(self):
         """Returns a list of keys for accessing specific metrics."""
-        return ['metrics/precision(B)', 'metrics/recall(B)', 'metrics/mAP50(B)', 'metrics/mAP50-95(B)']
+        return ['metrics/precision(B)', 'metrics/recall(B)', 'metrics/mAP50(B)', 'metrics/mAP50-95(B)', 'threshold']
 
     def mean_results(self):
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
@@ -743,7 +766,7 @@ class DetMetrics(SimpleClass):
     @property
     def results_dict(self):
         """Returns dictionary of computed performance metrics and statistics."""
-        return dict(zip(self.keys + ['fitness'], self.mean_results() + [self.fitness]))
+        return dict(zip(self.keys + ['fitness'], self.mean_results() + [self.box.threshold, self.fitness]))
 
 
 class SegmentMetrics(SimpleClass):
