@@ -43,9 +43,21 @@ class Detect(nn.Module):
     def forward(self, x):
         """Concatenates and returns predicted bounding boxes and class probabilities."""
         shape = x[0].shape  # BCHW
+        # print(f'export format {self.format}')
+        # print(f'export flag {self.export}')
+        # if self.export and self.format == 'rknn':
+            # y = []
+            # for i in range(self.nl):
+            #     y.append(self.cv2[i](x[i]))
+            #     cls = torch.sigmoid(self.cv3[i](x[i]))
+            #     cls_sum = torch.clamp(y[-1].sum(1, keepdim=True), 0, 1)
+            #     y.append(cls)
+            #     y.append(cls_sum)
+            # return y
+
         for i in range(self.nl):
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
-        if self.training:
+        if self.training or (self.export and self.format == 'rknn'):
             return x
         elif self.dynamic or self.shape != shape:
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
