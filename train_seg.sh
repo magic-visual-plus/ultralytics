@@ -1,0 +1,1 @@
+yolo segment train data=/opt/product/test_datas/seg_rb/data.yaml model=yolov8n-seg.pt epochs=100 imgsz=640

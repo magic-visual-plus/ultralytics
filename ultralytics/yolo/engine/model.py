@@ -25,7 +25,7 @@ TASK_MAP = {
         yolo.v8.detect.DetectionPredictor, yolo.v8.detect.DetectionTestValidator],
     'segment': [
         SegmentationModel, yolo.v8.segment.SegmentationTrainer, yolo.v8.segment.SegmentationValidator,
-        yolo.v8.segment.SegmentationPredictor],
+        yolo.v8.segment.SegmentationPredictor, yolo.v8.segment.SegmentationTestValidator],
     'pose': [PoseModel, yolo.v8.pose.PoseTrainer, yolo.v8.pose.PoseValidator, yolo.v8.pose.PosePredictor]}
 
 

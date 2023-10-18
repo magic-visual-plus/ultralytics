@@ -198,6 +198,7 @@ def check_python(minimum: str = '3.7.0') -> bool:
 
 @TryExcept()
 def check_requirements(requirements=ROOT.parent / 'requirements.txt', exclude=(), install=True, cmds=''):
+    return
     """
     Check if installed dependencies meet YOLOv8 requirements and attempt to auto-update if needed.
 
