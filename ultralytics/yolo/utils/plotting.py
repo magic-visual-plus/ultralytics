@@ -73,22 +73,24 @@ class Annotator:
         self.limb_color = colors.pose_palette[[9, 9, 9, 9, 7, 7, 7, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16]]
         self.kpt_color = colors.pose_palette[[16, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9]]
 
-    def box_label(self, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+    def box_label(self, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255), box_only_label=False):
         """Add one xyxy box to image with label."""
         if isinstance(box, torch.Tensor):
             box = box.tolist()
         if self.pil or not is_ascii(label):
-            self.draw.rectangle(box, width=self.lw, outline=color)  # box
+            if not box_only_label:
+                self.draw.rectangle(box, width=self.lw, outline=color)  # box
             if label:
                 if self.pil_9_2_0_check:
                     _, _, w, h = self.font.getbbox(label)  # text width, height (New)
                 else:
                     w, h = self.font.getsize(label)  # text width, height (Old, deprecated in 9.2.0)
                 outside = box[1] - h >= 0  # label fits outside box
+                # if not box_only_label:
                 self.draw.rectangle(
-                    (box[0], box[1] - h if outside else box[1], box[0] + w + 1,
-                     box[1] + 1 if outside else box[1] + h + 1),
-                    fill=color,
+                        (box[0], box[1] - h if outside else box[1], box[0] + w + 1,
+                        box[1] + 1 if outside else box[1] + h + 1),
+                        fill=color,
                 )
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
@@ -100,7 +102,8 @@ class Annotator:
                 w, h = cv2.getTextSize(label, 0, fontScale=self.lw / 3, thickness=tf)[0]  # text width, height
                 outside = p1[1] - h >= 3
                 p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
-                cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
+                if not box_only_label:
+                    cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
                 cv2.putText(self.im,
                             label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
                             0,

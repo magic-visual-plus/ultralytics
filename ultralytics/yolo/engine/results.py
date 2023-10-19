@@ -169,6 +169,7 @@ class Results(SimpleClass):
             boxes=True,
             masks=True,
             probs=True,
+            box_only_label=False,
             **kwargs  # deprecated args TODO: remove support in 8.2
     ):
         """
@@ -226,7 +227,7 @@ class Results(SimpleClass):
                 c, conf, id = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
                 name = ('' if id is None else f'id:{id} ') + names[c]
                 label = (f'{name} {conf:.2f}' if conf else name) if labels else None
-                annotator.box_label(d.xyxy.squeeze(), label, color=colors(c, True))
+                annotator.box_label(d.xyxy.squeeze(), label, color=colors(c, True), box_only_label=box_only_label)
 
         if pred_probs is not None and show_probs:
             n5 = min(len(names), 5)
