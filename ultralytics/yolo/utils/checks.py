@@ -155,6 +155,7 @@ def check_pip_update_available():
 
 
 def check_font(font='Arial.ttf'):
+    return
     """
     Find font locally or download to user's configuration directory if it does not already exist.
 
