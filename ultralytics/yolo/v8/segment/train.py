@@ -13,6 +13,31 @@ from ultralytics.yolo.utils.tal import make_anchors
 from ultralytics.yolo.utils.torch_utils import de_parallel
 from ultralytics.yolo.v8.detect.train import Loss
 
+# add dice loss for seg small object
+def dice_loss(
+    inputs: torch.Tensor,
+    targets: torch.Tensor,
+    num_masks: float,
+    scale=1000,  # 100000.0,
+    eps=1e-6,
+):
+    """
+    Compute the DICE loss, similar to generalized IOU for masks
+    Args:
+        inputs: A float tensor of arbitrary shape.
+                The predictions for each example.
+        targets: A float tensor with the same shape as inputs. Stores the binary
+                 classification label for each element in inputs
+                (0 for the negative class and 1 for the positive class).
+    """
+    inputs = inputs.sigmoid()
+    inputs = inputs.flatten(1, 2)
+    targets = targets.flatten(1, 2)
+    numerator = 2 * (inputs / scale * targets).sum(-1)
+    denominator = (inputs / scale).sum(-1) + (targets / scale).sum(-1)
+    loss = 1 - (numerator + eps) / (denominator + eps)
+    loss = loss.sum() / (num_masks + 1e-8)
+    return loss
 
 # BaseTrainer python usage
 class SegmentationTrainer(v8.detect.DetectionTrainer):
@@ -152,7 +177,10 @@ class SegLoss(Loss):
         """Mask loss for one image."""
         pred_mask = (pred @ proto.view(self.nm, -1)).view(-1, *proto.shape[1:])  # (n, 32) @ (32,80,80) -> (n,80,80)
         loss = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction='none')
-        return (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).mean()
+        # loss = loss + dice_loss(pred_mask, gt_mask, gt_mask.size(0))
+        seg_loss = (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).mean()
+        seg_loss = seg_loss + dice_loss(pred_mask, gt_mask, gt_mask.size(0))
+        return seg_loss
 
 
 def train(cfg=DEFAULT_CFG, use_python=False):

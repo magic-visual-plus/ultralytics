@@ -214,6 +214,7 @@ class Results(SimpleClass):
         pred_masks, show_masks = self.masks, masks
         pred_probs, show_probs = self.probs, probs
         keypoints = self.keypoints
+        # show_boxes = False
         if pred_masks and show_masks:
             if img_gpu is None:
                 img = LetterBox(pred_masks.shape[1:])(image=annotator.result())
@@ -226,6 +227,7 @@ class Results(SimpleClass):
             for d in reversed(pred_boxes):
                 c, conf, id = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
                 name = ('' if id is None else f'id:{id} ') + names[c]
+                # name = 'ng'
                 label = (f'{name} {conf:.2f}' if conf else name) if labels else None
                 annotator.box_label(d.xyxy.squeeze(), label, color=colors(c, True), box_only_label=box_only_label)
 

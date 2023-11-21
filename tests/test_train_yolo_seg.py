@@ -4,8 +4,8 @@ import os
 os.environ['WANDB_DISABLED'] = 'true'
 
 from ultralytics import YOLO
-pretrained_model_path = "/root/.cache/ckpts/yolov8n-seg.pt"
+pretrained_model_path = "/root/.cache/ckpts/yolov8m-seg.pt"
 model = YOLO(pretrained_model_path)  # load a pretrained model (recommended for training)
 lr = 0.01
 train_base_dir = '/opt/ml/ultralytics/datas'
-model.train(data='/opt/ml/ultralytics/datas/data.yaml', epochs=100, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, workers=2)
+model.train(data='/opt/ml/ultralytics/datas/data.yaml', epochs=20, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, workers=1, batch=8)
