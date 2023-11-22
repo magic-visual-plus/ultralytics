@@ -155,3 +155,4 @@ weights/
 *_openvino_model/
 *_paddle_model/
 datas
+nohup.out

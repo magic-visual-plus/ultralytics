@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .metrics import bbox_iou
+from .metrics import bbox_iou, wasserstein_loss
 from .tal import bbox2dist
 
 
@@ -31,12 +31,20 @@ class BboxLoss(nn.Module):
         super().__init__()
         self.reg_max = reg_max
         self.use_dfl = use_dfl
+        self.nwd_loss = True
+        self.iou_ratio = 0.65
+        print(f'nwd_loss {self.nwd_loss}')
 
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
         """IoU loss."""
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        
+        if self.nwd_loss:
+            nwd = wasserstein_loss(pred_bboxes[fg_mask], target_bboxes[fg_mask])
+            nwd_loss = ((1.0 - nwd) * weight).sum() / target_scores_sum
+            loss_iou = self.iou_ratio * loss_iou +  (1 - self.iou_ratio) * nwd_loss
 
         # DFL loss
         if self.use_dfl:
