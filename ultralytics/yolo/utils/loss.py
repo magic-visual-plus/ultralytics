@@ -32,7 +32,7 @@ class BboxLoss(nn.Module):
         self.reg_max = reg_max
         self.use_dfl = use_dfl
         self.nwd_loss = True
-        self.iou_ratio = 0.65
+        self.iou_ratio = 0.5
         print(f'nwd_loss {self.nwd_loss}')
 
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
