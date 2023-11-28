@@ -29,12 +29,14 @@ def call_on_train_end(trainer):
     logger.info("train stoped, best epoch is {}" , trainer.stopper.best_epoch)
 
 pretrained_model_path = "/root/.cache/ckpts/yolov8m.pt"
-# model = YOLO("/opt/ml/ultralytics/ultralytics/models/v8/yolov8m_custom.yaml").load(pretrained_model_path)
-model = YOLO(pretrained_model_path)  # load a pretrained model (recommended for training)
+pretrained_model_path = '/opt/product/test_datas/yolo_1125/dataset/yolo_more_neck.pt'
+model = YOLO("/opt/ml/ultralytics/ultralytics/models/v8/yolov8m_custom.yaml").load(pretrained_model_path)
+# model = YOLO(pretrained_model_path)  # load a pretrained model (recommended for training)
 
 model.add_callback("on_train_end", call_on_train_end)
 model.add_callback("on_val_end", call_on_val_end)
 lr = 0.005
-freeze = 10
+# freeze = 10
 train_base_dir = '/opt/product/test_datas/yolo_chip_v2'
-model.train(data=f'{train_base_dir}/dataset/data.yaml', epochs=100, project=f"{train_base_dir}/output", name="output", batch=8, model=pretrained_model_path, lr0=lr, workers=1)
+train_base_dir = '/opt/product/test_datas/yolo_1125'
+model.train(data=f'{train_base_dir}/dataset/data.yaml', epochs=10, project=f"{train_base_dir}/output", name="output", batch=8, model=pretrained_model_path, lr0=lr, workers=1, device='1')
