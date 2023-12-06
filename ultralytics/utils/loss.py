@@ -12,6 +12,34 @@ from .metrics import bbox_iou
 from .tal import bbox2dist
 
 
+# add dice loss for seg small object
+def dice_loss(
+    inputs: torch.Tensor,
+    targets: torch.Tensor,
+    num_masks: float,
+    scale=1000,  # 100000.0,
+    eps=1e-6,
+):
+    """
+    Compute the DICE loss, similar to generalized IOU for masks
+    Args:
+        inputs: A float tensor of arbitrary shape.
+                The predictions for each example.
+        targets: A float tensor with the same shape as inputs. Stores the binary
+                 classification label for each element in inputs
+                (0 for the negative class and 1 for the positive class).
+    """
+    inputs = inputs.sigmoid()
+    inputs = inputs.flatten(1, 2)
+    targets = targets.flatten(1, 2)
+    numerator = 2 * (inputs / scale * targets).sum(-1)
+    denominator = (inputs / scale).sum(-1) + (targets / scale).sum(-1)
+    loss = 1 - (numerator + eps) / (denominator + eps)
+    loss = loss.sum() / (num_masks + 1e-8)
+    return loss
+    # return loss.sum()
+   
+
 class VarifocalLoss(nn.Module):
     """
     Varifocal loss by Zhang et al.
@@ -305,7 +333,13 @@ class v8SegmentationLoss(v8DetectionLoss):
         """
         pred_mask = torch.einsum('in,nhw->ihw', pred, proto)  # (n, 32) @ (32, 80, 80) -> (n, 80, 80)
         loss = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction='none')
-        return (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).sum()
+        
+        seg_loss = (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).sum()
+        sum_dice_loss = dice_loss(pred_mask, gt_mask, gt_mask.size(0))
+        # print(f'seg loss {seg_loss}, dice_loss {sum_dice_loss}')
+        # seg_loss = seg_loss
+        return seg_loss, sum_dice_loss
+    
 
     def calculate_segmentation_loss(
         self,
@@ -353,6 +387,7 @@ class v8SegmentationLoss(v8DetectionLoss):
         # Normalize to mask size
         mxyxy = target_bboxes_normalized * torch.tensor([mask_w, mask_h, mask_w, mask_h], device=proto.device)
 
+        dice_loss_all = 0
         for i, single_i in enumerate(zip(fg_mask, target_gt_idx, pred_masks, proto, mxyxy, marea, masks)):
             fg_mask_i, target_gt_idx_i, pred_masks_i, proto_i, mxyxy_i, marea_i, masks_i = single_i
             if fg_mask_i.any():
@@ -363,14 +398,20 @@ class v8SegmentationLoss(v8DetectionLoss):
                 else:
                     gt_mask = masks[batch_idx.view(-1) == i][mask_idx]
 
-                loss += self.single_mask_loss(gt_mask, pred_masks_i[fg_mask_i], proto_i, mxyxy_i[fg_mask_i],
+                
+                ce_loss, dice_loss = self.single_mask_loss(gt_mask, pred_masks_i[fg_mask_i], proto_i, mxyxy_i[fg_mask_i],
                                               marea_i[fg_mask_i])
+                loss += ce_loss
+                dice_loss_all += dice_loss
 
             # WARNING: lines below prevents Multi-GPU DDP 'unused gradient' PyTorch errors, do not remove
             else:
                 loss += (proto * 0).sum() + (pred_masks * 0).sum()  # inf sums may lead to nan loss
-
-        return loss / fg_mask.sum()
+        
+        # return loss
+        dice_loss_all = dice_loss_all / len(fg_mask)
+        # print(f'total loss {loss} dice_loss_all {dice_loss_all}, fg_mask.sum() {fg_mask.sum()}')
+        return loss / fg_mask.sum() + dice_loss_all
 
 
 class v8PoseLoss(v8DetectionLoss):
