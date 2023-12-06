@@ -195,12 +195,21 @@ class DetectionModel(BaseModel):
         # Build strides
         m = self.model[-1]  # Detect()
         if isinstance(m, (Detect, Segment, Pose)):
-            s = 256  # 2x min stride
+            s = 640  # 2x min stride
             m.inplace = self.inplace
             forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose)) else self.forward(x)
-            m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
+            try:
+                m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
+            except RuntimeError as e:
+                if 'Not implemented on the CPU' in str(e):
+                    self.model.to(torch.device('cuda'))
+                    m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(2, ch, s, s).to(torch.device('cuda')))])  # forward
+                else:
+                    raise e
             self.stride = m.stride
             m.bias_init()  # only run once
+        else:
+            self.stride = torch.Tensor([32])  # default stride for i.e. RTDETR
 
         # Init weights, biases
         initialize_weights(self)
@@ -475,6 +484,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     depth, width, kpt_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape'))
     if scales:
         scale = d.get('scale')
+        LOGGER.info(f'model scale is {scale}')
         if not scale:
             scale = tuple(scales.keys())[0]
             LOGGER.warning(f"WARNING ⚠️ no model scale passed. Assuming scale='{scale}'.")

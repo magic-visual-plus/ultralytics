@@ -29,6 +29,7 @@ TORCHVISION_0_10 = check_version(torchvision.__version__, '0.10.0')
 TORCH_1_9 = check_version(torch.__version__, '1.9.0')
 TORCH_1_11 = check_version(torch.__version__, '1.11.0')
 TORCH_1_12 = check_version(torch.__version__, '1.12.0')
+TORCH_1_13_1 = check_version(torch.__version__, '1.13.1')
 TORCH_2_0 = check_version(torch.__version__, minimum='2.0')
 
 
@@ -288,6 +289,7 @@ def one_cycle(y1=0.0, y2=1.0, steps=100):
 
 def init_seeds(seed=0, deterministic=False):
     """Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html."""
+    print(f'seed {seed}, deterministic {deterministic}')
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -295,13 +297,13 @@ def init_seeds(seed=0, deterministic=False):
     torch.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
     # torch.backends.cudnn.benchmark = True  # AutoBatch problem https://github.com/ultralytics/yolov5/issues/9287
     if deterministic:  # https://github.com/ultralytics/yolov5/pull/8213
-        if TORCH_2_0:
+        if TORCH_1_13_1:
             torch.use_deterministic_algorithms(True)
             torch.backends.cudnn.deterministic = True
             os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
             os.environ['PYTHONHASHSEED'] = str(seed)
         else:
-            LOGGER.warning('WARNING ⚠️ Upgrade to torch>=2.0.0 for deterministic training.')
+            LOGGER.warning('WARNING ⚠️ Upgrade to torch>=1.13.1 for deterministic training.')
 
 
 class ModelEMA:
