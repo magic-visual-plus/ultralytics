@@ -21,12 +21,16 @@ class YOLO(Model):
                 'model': DetectionModel,
                 'trainer': yolo.detect.DetectionTrainer,
                 'validator': yolo.detect.DetectionValidator,
-                'predictor': yolo.detect.DetectionPredictor, },
+                'predictor': yolo.detect.DetectionPredictor,
+                'testor': yolo.detect.DetectionTestValidator,
+                },
             'segment': {
                 'model': SegmentationModel,
                 'trainer': yolo.segment.SegmentationTrainer,
                 'validator': yolo.segment.SegmentationValidator,
-                'predictor': yolo.segment.SegmentationPredictor, },
+                'predictor': yolo.segment.SegmentationPredictor, 
+                'testor': yolo.segment.SegmentationTestValidator,
+                },
             'pose': {
                 'model': PoseModel,
                 'trainer': yolo.pose.PoseTrainer,

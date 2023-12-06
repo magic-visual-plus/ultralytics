@@ -266,6 +266,7 @@ def check_font(font='Arial.ttf'):
     Returns:
         file (Path): Resolved font file path.
     """
+    return 
     name = Path(font).name
 
     # Check USER_CONFIG_DIR
@@ -324,7 +325,7 @@ def check_requirements(requirements=ROOT.parent / 'requirements.txt', exclude=()
         check_requirements(['numpy', 'ultralytics>=8.0.0'])
         ```
     """
-
+    return 
     prefix = colorstr('red', 'bold', 'requirements:')
     check_python()  # check python version
     check_torchvision()  # check torch-torchvision compatibility

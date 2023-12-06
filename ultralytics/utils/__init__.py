@@ -935,7 +935,7 @@ RUNS_DIR = Path(SETTINGS['runs_dir'])  # global runs directory
 ENVIRONMENT = 'Colab' if is_colab() else 'Kaggle' if is_kaggle() else 'Jupyter' if is_jupyter() else \
     'Docker' if is_docker() else platform.system()
 TESTS_RUNNING = is_pytest_running() or is_github_actions_ci()
-set_sentry()
+# set_sentry()
 
 # Apply monkey patches
 from .patches import imread, imshow, imwrite, torch_save

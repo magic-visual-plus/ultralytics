@@ -12,6 +12,34 @@ from .metrics import bbox_iou
 from .tal import bbox2dist
 
 
+def wasserstein_loss(pred, target, eps=1e-7, constant=12.8):
+    r"""`Implementation of paper `Enhancing Geometric Factors into
+    Model Learning and Inference for Object Detection and Instance
+    Segmentation <https://arxiv.org/abs/2005.03572>`_.
+    Code is modified from https://github.com/Zzh-tju/CIoU.
+    Args:
+        pred (Tensor): Predicted bboxes of format (x_min, y_min, x_max, y_max),
+            shape (n, 4).
+        target (Tensor): Corresponding gt bboxes, shape (n, 4).
+        eps (float): Eps to avoid log(0).
+    Return:
+        Tensor: Loss tensor.
+    """
+
+    b1_x1, b1_y1, b1_x2, b1_y2 = pred.chunk(4, -1)
+    b2_x1, b2_y1, b2_x2, b2_y2 = target.chunk(4, -1)
+    w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
+    w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
+
+    b1_x_center, b1_y_center = b1_x1 + w1 / 2, b1_y1 + h1 / 2
+    b2_x_center, b2_y_center = b2_x1 + w2 / 2, b2_y1 + h2 / 2
+    center_distance = (b1_x_center - b2_x_center) ** 2 + (b1_y_center - b2_y_center) ** 2 + eps
+    wh_distance = ((w1 - w2) ** 2 + (h1 - h2) ** 2) / 4
+
+    wasserstein_2 = center_distance + wh_distance
+    return torch.exp(-torch.sqrt(wasserstein_2) / constant)
+
+
 # add dice loss for seg small object
 def dice_loss(
     inputs: torch.Tensor,
@@ -37,7 +65,6 @@ def dice_loss(
     loss = 1 - (numerator + eps) / (denominator + eps)
     loss = loss.sum() / (num_masks + 1e-8)
     return loss
-    # return loss.sum()
    
 
 class VarifocalLoss(nn.Module):
@@ -94,6 +121,9 @@ class BboxLoss(nn.Module):
         super().__init__()
         self.reg_max = reg_max
         self.use_dfl = use_dfl
+        self.nwd_loss = True
+        self.iou_ratio = 0.5
+        print(f'nwd_loss {self.nwd_loss}')
 
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
         """IoU loss."""
@@ -101,6 +131,11 @@ class BboxLoss(nn.Module):
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
 
+        if self.nwd_loss:
+            nwd = wasserstein_loss(pred_bboxes[fg_mask], target_bboxes[fg_mask])
+            nwd_loss = ((1.0 - nwd) * weight).sum() / target_scores_sum
+            loss_iou = self.iou_ratio * loss_iou +  (1 - self.iou_ratio) * nwd_loss
+            
         # DFL loss
         if self.use_dfl:
             target_ltrb = bbox2dist(anchor_points, target_bboxes, self.reg_max)

@@ -10,12 +10,12 @@ from ultralytics.data import build_dataloader, build_yolo_dataset, converter
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, ops
 from ultralytics.utils.checks import check_requirements
-from ultralytics.utils.metrics import ConfusionMatrix, DetMetrics, box_iou
+from ultralytics.utils.metrics import ConfusionMatrix, DetMetricsForTest, box_iou
 from ultralytics.utils.plotting import output_to_target, plot_images
 from ultralytics.utils.torch_utils import de_parallel
 
 
-class DetectionValidator(BaseValidator):
+class DetectionTestValidator(BaseValidator):
     """
     A class extending the BaseValidator class for validation based on a detection model.
 
@@ -36,7 +36,7 @@ class DetectionValidator(BaseValidator):
         self.is_coco = False
         self.class_map = None
         self.args.task = 'detect'
-        self.metrics = DetMetrics(save_dir=self.save_dir, on_plot=self.on_plot)
+        self.metrics = DetMetricsForTest(save_dir=self.save_dir, on_plot=self.on_plot)
         self.iouv = torch.linspace(0.5, 0.95, 10)  # iou vector for mAP@0.5:0.95
         self.niou = self.iouv.numel()
         self.lb = []  # for autolabelling
@@ -101,8 +101,8 @@ class DetectionValidator(BaseValidator):
             if npr == 0:
                 if nl:
                     self.stats.append((correct_bboxes, *torch.zeros((2, 0), device=self.device), cls.squeeze(-1)))
-                    if self.args.plots:
-                        self.confusion_matrix.process_batch(detections=None, labels=cls.squeeze(-1))
+                    # if self.args.plots:
+                    #     self.confusion_matrix.process_batch(detections=None, labels=cls.squeeze(-1))
                 continue
 
             # Predictions
@@ -122,8 +122,8 @@ class DetectionValidator(BaseValidator):
                 labelsn = torch.cat((cls, tbox), 1)  # native-space labels
                 correct_bboxes = self._process_batch(predn, labelsn)
                 # TODO: maybe remove these `self.` arguments as they already are member variable
-                if self.args.plots:
-                    self.confusion_matrix.process_batch(predn, labelsn)
+                # if self.args.plots:
+                #     self.confusion_matrix.process_batch(predn, labelsn)
             self.stats.append((correct_bboxes, pred[:, 4], pred[:, 5], cls.squeeze(-1)))  # (conf, pcls, tcls)
 
             # Save
@@ -136,7 +136,7 @@ class DetectionValidator(BaseValidator):
     def finalize_metrics(self, *args, **kwargs):
         """Set final values for metrics speed and confusion matrix."""
         self.metrics.speed = self.speed
-        self.metrics.confusion_matrix = self.confusion_matrix
+        # self.metrics.confusion_matrix = self.confusion_matrix
 
     def get_stats(self):
         """Returns metrics statistics and results dictionary."""
@@ -159,12 +159,12 @@ class DetectionValidator(BaseValidator):
             for i, c in enumerate(self.metrics.ap_class_index):
                 LOGGER.info(pf % (self.names[c], self.seen, self.nt_per_class[c], *self.metrics.class_result(i)))
 
-        if self.args.plots:
-            for normalize in True, False:
-                self.confusion_matrix.plot(save_dir=self.save_dir,
-                                           names=self.names.values(),
-                                           normalize=normalize,
-                                           on_plot=self.on_plot)
+        # if self.args.plots:
+        #     for normalize in True, False:
+        #         self.confusion_matrix.plot(save_dir=self.save_dir,
+        #                                    names=self.names.values(),
+        #                                    normalize=normalize,
+        #                                    on_plot=self.on_plot)
 
     def _process_batch(self, detections, labels):
         """

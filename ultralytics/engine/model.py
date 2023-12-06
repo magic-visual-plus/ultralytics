@@ -276,6 +276,22 @@ class Model(nn.Module):
         validator(model=self.model)
         self.metrics = validator.metrics
         return validator.metrics
+    
+    def test(self, validator=None, **kwargs):
+        """
+        test a model on a given dataset.
+
+        Args:
+            validator (BaseValidator): Customized validator.
+            **kwargs : Any other args accepted by the validators. To see all args check 'configuration' section in docs
+        """
+        custom = {'rect': True}  # method defaults
+        args = {**self.overrides, **custom, **kwargs, 'mode': 'val'}  # highest priority args on the right
+
+        validator = (validator or self._smart_load('testor'))(args=args, _callbacks=self.callbacks)
+        validator(model=self.model)
+        self.metrics = validator.metrics
+        return validator.metrics
 
     def benchmark(self, **kwargs):
         """
