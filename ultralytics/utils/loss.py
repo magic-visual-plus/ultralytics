@@ -446,7 +446,7 @@ class v8SegmentationLoss(v8DetectionLoss):
         # return loss
         dice_loss_all = dice_loss_all / len(fg_mask)
         # print(f'total loss {loss} dice_loss_all {dice_loss_all}, fg_mask.sum() {fg_mask.sum()}')
-        return loss / fg_mask.sum() + dice_loss_all
+        return loss / fg_mask.sum() + dice_loss_all * 2
 
 
 class v8PoseLoss(v8DetectionLoss):
