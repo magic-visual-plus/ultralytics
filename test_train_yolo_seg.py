@@ -11,8 +11,9 @@ pretrained_model_path = "/root/.cache/ckpts/yolov8m-seg.pt"
 # TODO enable later
 # model.load(pretrained_model_path) # loading pretrain weights
 model = YOLO(pretrained_model_path)  # load a pretrained model (recommended for training)
-lr = 0.01
+lr = 0.006
 train_base_dir = '/root/.cache/trains/2b75f2b4-cf67-463b-9ff6-58c534dfb52e'
+train_base_dir = '/root/.cache/trains/a4d98757-4f07-407c-9333-926a17b0b630/'
 # model.train(data=f'{train_base_dir}/dataset/data.yaml', device="cuda:1", copy_paste=0.0, mixup=0.0, epochs=200, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, workers=1, batch=8, imgsz=640)
-model.train(data=f'{train_base_dir}/dataset/data.yaml', device="cuda:1", copy_paste=0.0, mixup=0.0, epochs=200, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, workers=1, batch=8, imgsz=1280)
+model.train(data=f'{train_base_dir}/dataset/data.yaml', device="cuda:1", copy_paste=0.0, mixup=0.0, epochs=200, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, optimizer='SGD', workers=1, batch=8, imgsz=1024)
 # model.train(data=f'{train_base_dir}/dataset/data.yaml', device="cuda:1", copy_paste=0.0, mixup=0.0, epochs=20, project=f"{train_base_dir}/output", name="output", model=pretrained_model_path, lr0=lr, workers=1, batch=8, imgsz=640)

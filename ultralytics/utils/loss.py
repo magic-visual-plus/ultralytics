@@ -39,6 +39,16 @@ def wasserstein_loss(pred, target, eps=1e-7, constant=12.8):
     wasserstein_2 = center_distance + wh_distance
     return torch.exp(-torch.sqrt(wasserstein_2) / constant)
 
+def ssim_loss(pred, target):
+    # ADD ssim loss for refine boundary edge
+    from torchmetrics.image import StructuralSimilarityIndexMeasure
+    pred = pred.to(dtype=target.dtype)
+    pred = pred.unsqueeze(1)
+    target = target.unsqueeze(1)
+    metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(pred.device)
+    value = metric(pred, target)
+    del metric
+    return 1 - value
 
 # add dice loss for seg small object
 def dice_loss(
@@ -371,8 +381,9 @@ class v8SegmentationLoss(v8DetectionLoss):
         
         seg_loss = (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).sum()
         sum_dice_loss = dice_loss(pred_mask, gt_mask, gt_mask.size(0))
-        # print(f'seg loss {seg_loss}, dice_loss {sum_dice_loss}')
-        # seg_loss = seg_loss
+        # sum_ssim_loss = ssim_loss(pred_mask, gt_mask)
+        # sum_dice_loss = sum_dice_loss + sum_ssim_loss
+        # print(f'seg loss {seg_loss}, dice_loss {sum_dice_loss} ssim_loss {sum_ssim_loss}')
         return seg_loss, sum_dice_loss
     
 
