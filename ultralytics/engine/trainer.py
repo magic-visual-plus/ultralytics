@@ -442,6 +442,7 @@ class BaseTrainer:
             torch.save(ckpt, self.best)
         if (self.save_period > 0) and (self.epoch > 0) and (self.epoch % self.save_period == 0):
             torch.save(ckpt, self.wdir / f'epoch{self.epoch}.pt')
+        del ckpt
 
     @staticmethod
     def get_dataset(data):
