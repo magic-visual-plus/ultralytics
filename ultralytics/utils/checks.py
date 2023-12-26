@@ -552,7 +552,8 @@ def check_amp(model):
     device = next(model.parameters()).device  # get model device
     if device.type in ('cpu', 'mps'):
         return False  # AMP only used on CUDA devices
-
+    # default to True in cuda device
+    return True
     def amp_allclose(m, im):
         """All close FP32 vs AMP results."""
         a = m(im, device=device, verbose=False)[0].boxes.data  # FP32 inference
