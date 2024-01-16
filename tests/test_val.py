@@ -14,10 +14,12 @@ def test_val():
 
 
 def test_val_test():
-    model = YOLO('/tmp/trains/710/output/best.pt')  # load an official model        
+    model_file = '/root/.cache/ckpts/eval/eval_f0ce39e9-f721-4299-b464-e6140fd4b267.pt'
+    model_train_config_dir = '/tmp/test_val/f0ce39e9-f721-4299-b464-e6140fd4b267'
+    
+    model = YOLO(model_file)  # load an official model        
     # Validate the model
-    metrics = model.test(data="/tmp/trains/710/dataset/data.yaml", split="test", save_json=True, conf=.4)
-    # metrics = model.val(data="/tmp/trains/710/dataset/test")
+    metrics = model.test(data=f"{model_train_config_dir}/dataset/data.yaml", split="test", save_json=True, conf=.4, save_txt=True)
     logger.info(metrics)
     test_dict = {}
     for k, v in metrics.results_dict.items():

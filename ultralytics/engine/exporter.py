@@ -274,7 +274,7 @@ class Exporter:
         if ncnn:  # ncnn
             f[11], _ = self.export_ncnn()
         if rknn: # RKNN
-            f[12], _ = self.export_onnx()
+            f[12], _ = self.export_rknn()
 
         # Finish
         f = [str(x) for x in f if x]  # filter out '' and None
@@ -311,6 +311,30 @@ class Exporter:
             ts.save(str(f), _extra_files=extra_files)
         return f, None
 
+    @try_export
+    def export_rknn(self, prefix=colorstr('RKNN:')):
+        """YOLOv8 RKNN model export."""
+        LOGGER.info(f'\n{prefix} starting export with torch {torch.__version__}...')
+
+        # ts = torch.jit.trace(self.model, self.im, strict=False)
+        # f = str(self.file).replace(self.file.suffix, f'_rknnopt.torchscript')
+        # torch.jit.save(ts, str(f))
+
+        f = str(self.file).replace(self.file.suffix, f'.onnx')
+        opset_version = self.args.opset or get_latest_opset()
+        torch.onnx.export(
+            self.model,
+            self.im[0:1,:,:,:],
+            f,
+            verbose=False,
+            opset_version=12,
+            do_constant_folding=True,  # WARNING: DNN inference with torch>=1.12 may require do_constant_folding=False
+            input_names=['images'])
+
+        LOGGER.info(f'\n{prefix} feed {f} to RKNN-Toolkit or RKNN-Toolkit2 to generate RKNN model.\n' 
+                    'Refer https://github.com/airockchip/rknn_model_zoo/tree/main/models/CV/object_detection/yolo')
+        return f, None
+    
     @try_export
     def export_onnx(self, prefix=colorstr('ONNX:')):
         """YOLOv8 ONNX export."""

@@ -13,18 +13,19 @@ if __name__ == '__main__':
     # data_path = '/opt/ml/ultralytics/ultralytics/datasets/coco_1w.yaml'
     # data_path = '/opt/product/test_datas/yolo_1125/dataset/data.yaml'
     data_path = '/opt/product/test_datas/yolo_1127/dataset/data.yaml'
+    # data_path = '/root/.cache/trains/c589deeb-7349-4ed8-809f-3e5254cefa05/dataset/data.yaml'
     cfg_yaml = '/opt/ml/ultralytics/ultralytics/cfg/models/v8/yolov8m_custom_z.yaml'
-    model = YOLO(cfg_yaml)
-    model.load(pretrained_model_path) # loading pretrain weights
+    # model = YOLO(cfg_yaml)
+    # model.load(pretrained_model_path) # loading pretrain weights
+    model = YOLO("/root/.cache/pretrain_models/3f9bcec16890299ad529d0cd0c3579a8.pt")
     lr = 0.01
     model.train(data=data_path,
-                cache=False,
                 imgsz=640,
                 lr0=lr,
                 epochs=20,
                 batch=16,
                 close_mosaic=10,
-                workers=2,
+                workers=1,
                 device='0',
                 optimizer='SGD', # using SGD
                 # resume='', # last.pt path
@@ -32,4 +33,5 @@ if __name__ == '__main__':
                 # fraction=0.2,
                 project='runs/train_ms',
                 name='exp',
+                cache="disk"
                 )
