@@ -3,16 +3,18 @@ from ultralytics import YOLO
 
 def test_predict():
     checkpoint_path = '/root/.cache/trains/a4d98757-4f07-407c-9333-926a17b0b630/output/weights/best.pt'
+    checkpoint_path = '/Users/xbkaishui/Downloads/yolov9c.pt'
     model = YOLO(checkpoint_path)
 
     config_dict = {
-                "save": False,
+                "save": True ,
                 "show_labels": False,
                 "verbose": False,
                 "conf": .25,
                 "retina_masks": True,
             }
     source = '/tmp/a.png'
+    source = '/Users/xbkaishui/opensource/cv_hz/ultralytics/ultralytics/assets/bus.jpg'
     result = model.predict(source=source, **config_dict)[0]
     print(result)
     
@@ -36,5 +38,5 @@ def test_ssim():
     print(cur_ssim)
     
 if __name__ == '__main__':
-    test_ssim()
-    # test_predict()
+    # test_ssim()
+    test_predict()
