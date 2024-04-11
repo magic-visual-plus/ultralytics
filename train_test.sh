@@ -1,0 +1,1 @@
+nohup python test_train_yolo_det.py &
